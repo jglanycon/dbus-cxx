@@ -71,17 +71,25 @@ inline DataType char_to_dbus_type( char c ) {
         return DataType::ARRAY;
 
     case 'r':
-    case '(':
-    case ')':
         return DataType::STRUCT;
+
+    case '(':
+        return DataType::STRUCT_BEGIN;
+
+    case ')':
+        return DataType::STRUCT_END;
 
     case 'v':
         return DataType::VARIANT;
 
     case 'e':
-    case '{':
-    case '}':
         return DataType::DICT_ENTRY;
+
+    case '{':
+        return DataType::DICT_ENTRY_BEGIN;
+
+    case '}':
+        return DataType::DICT_ENTRY_END;
 
     case 'h':
         return DataType::UNIX_FD;

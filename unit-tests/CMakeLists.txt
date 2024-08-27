@@ -241,6 +241,7 @@ add_test( NAME signature-dict COMMAND test-signature iterate_nested_dict)
 add_test( NAME signature-nested-more-data COMMAND test-signature iterate_nested_with_more_data)
 add_test( NAME signature-dict-and-data COMMAND test-signature iterate_dict_and_data)
 add_test( NAME signature-struct-and-data COMMAND test-signature iterate_struct_and_data)
+add_test( NAME signature-nested_combi_of_array_structs COMMAND test-signature iterate_nested_combi_of_array_structs)
 
 add_test( NAME signature-unbalanced-struct COMMAND test-signature unbalanced_struct)
 add_test( NAME signature-single-bool COMMAND test-signature single_bool)

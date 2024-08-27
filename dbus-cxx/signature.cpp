@@ -7,25 +7,21 @@
  ***************************************************************************/
 #include "signature.h"
 
-#include <vector>
-#include <stack>
-#include <exception>
-
 #include "dbus-cxx-private.h"
-
 #include "types.h"
+#include "error.h"
 
 static const char* LOGGER_NAME = "DBus.Signature";
 
 namespace DBus {
 
-const Signature::size_type npos = std::string::npos;
-
-class Signature::priv_data {
+class Signature::priv_data
+{
 public:
     priv_data() :
         m_valid( false )
-    {}
+    {
+    }
 
     std::string m_signature;
 
@@ -115,135 +111,167 @@ bool Signature::is_singleton() const {
 
 Signature::SignatureNodePointer Signature::create_signature_tree(
     std::string::const_iterator& itr,
-    std::stack<ContainerType>* container_stack,
-    bool& ok) {
+    std::string::const_iterator const& end_itr,
+    SignatureNodePointer const& parent_node)
+{
     SignatureNodePointer first;
     SignatureNodePointer current;
 
-    if( container_stack->size() > 64 ) {
-        ok = false;
-        return nullptr;
-    }
+    while (itr != end_itr)
+    {
+        DataType data_type =
+            char_to_dbus_type(*itr);
 
-    if( itr == m_priv->m_signature.cend() ) {
-        return nullptr;
-    }
+        current =
+            create_signature_node(
+                data_type,
+                current);
 
-    do {
-        DataType data_type = char_to_dbus_type( *itr );
-        bool ending_container = is_ending_container( *itr );
-
-        if( data_type == DataType::INVALID ) {
-            ok = false;
-            return nullptr;
+        if (!first)
+        {
+            first =
+                current;
         }
 
-        if( ending_container ) {
-            if( container_stack->size() == 0 ) {
-                ok = false;
-                return nullptr;
-            }
-
-            ContainerType currentTop = container_stack->top();
-
-            if( currentTop == ContainerType::STRUCT &&
-                data_type == DataType::STRUCT ) {
-                return first;
-            } else if( currentTop == ContainerType::DICT_ENTRY &&
-                data_type == DataType::DICT_ENTRY ) {
-                return first;
-            } else {
-                ok = false;
-                return nullptr;
-            }
-        }
-
-        SignatureNodePointer newnode =
-            std::make_shared<priv::SignatureNode>( data_type );
-
-        if( current != nullptr ) {
-            current->m_next = newnode;
-            current = newnode;
-        }
-
-        if( first == nullptr ) {
-            first = newnode;
-            current = newnode;
-        }
-
-        TypeInfo ti( data_type );
-
-        if( !container_stack->empty() &&
-            container_stack->top() == ContainerType::ARRAY &&
-            ti.is_basic() ) {
-            // We just added this basic element to the array
-            itr++;
-            break;
-        }
-
-        if( ti.is_container() &&
-            data_type != DataType::VARIANT ) {
-            ContainerType toPush = char_to_container_type( *itr );
-            container_stack->push( toPush );
-            itr++;
-            current->m_sub = create_signature_tree( itr, container_stack, ok );
-
-            if( container_stack->top() != toPush ) {
-                // Unbalanced
-                ok = false;
-                return nullptr;
-            }
-
-            // If we're the ending character of a container,
-            // advance the iterator so we go to the next character
-            ending_container = is_ending_container( *itr );
-
-            if( (ending_container) &&
-                 (toPush == ContainerType::STRUCT ) ) {
-                container_stack->pop();
-            }
-            else if( (ending_container) &&
-                      (toPush == ContainerType::DICT_ENTRY) ) {
-                container_stack->pop();
-                itr++;
-                return first;
-            } else if( toPush == ContainerType::ARRAY &&
-                current->m_sub != nullptr ) {
-                // Note: need to be special about popping and advancing iterator
-                // Assume we have 'aaid' as our signature.  When popping the array
-                // off of our stack, we only need to advance the iterator once.
-                // So basically, don't advance the iterator unless we're all the way
-                // at the begining of the array.
-                // This also means that we will either continue or break, depending on
-                // if we are at the end of the signature or not, so we know if we need
-                // to go on at all.
-                bool isArrayEnd = true;
-
-                container_stack->pop();
-
-                if( !container_stack->empty() &&
-                    container_stack->top() == ContainerType::ARRAY ) {
-                    isArrayEnd = false;
-                }
-
-                if( isArrayEnd && itr != m_priv->m_signature.cend() ) {
-                    continue;
-                }
+        switch (data_type)
+        {
+            case DataType::ARRAY:
+            {
+                current->m_sub =
+                    create_signature_tree(
+                        ++itr,
+                        end_itr,
+                        current);
 
                 break;
-            } else {
-                ok = false;
-                return nullptr;
+            }
+            case DataType::STRUCT:
+            {
+                break;
+            }
+            case DataType::STRUCT_BEGIN:
+            {
+                current->m_sub =
+                    create_signature_tree(
+                        ++itr,
+                        end_itr,
+                        current);
+
+                break;
+            }
+            case DataType::STRUCT_END:
+            {
+                if (parent_node->m_dataType != DataType::STRUCT)
+                    throw ErrorUnableToParse("STRUCT_END end without any STRUCT_BEGIN");
+
+                return first;
+            }
+            case DataType::DICT_ENTRY:
+            {
+                break;
+            }
+            case DataType::DICT_ENTRY_BEGIN:
+            {
+                current->m_sub =
+                    create_signature_tree(
+                        ++itr,
+                        end_itr,
+                        current);
+
+                break;
+            }
+            case DataType::DICT_ENTRY_END:
+            {
+                if (parent_node->m_dataType != DataType::DICT_ENTRY)
+                    throw ErrorUnableToParse("DICT_ENTRY END end without any DICT_ENTRY BEGIN");
+
+                return first;
+            }
+
+            case DataType::BYTE:
+            case DataType::BOOLEAN:
+            case DataType::INT16:
+            case DataType::UINT16:
+            case DataType::INT32:
+            case DataType::UINT32:
+            case DataType::INT64:
+            case DataType::UINT64:
+            case DataType::DOUBLE:
+            case DataType::STRING:
+            case DataType::OBJECT_PATH:
+            case DataType::SIGNATURE:
+            case DataType::VARIANT:
+            case DataType::UNIX_FD:
+            {
+                break;
+            }
+
+            default:
+            {
+                throw ErrorUnableToParse("Unknown DataType");
             }
         }
 
-        if( itr != m_priv->m_signature.cend() ) {
-            itr++;
+        if ( (parent_node) &&
+             (parent_node->m_dataType == DataType::ARRAY) )
+        {
+            return first;
         }
+
+        ++itr;
     }
-    while (itr != m_priv->m_signature.cend() );
+
+    if ( (parent_node) &&
+         (parent_node->m_dataType == DataType::STRUCT) )
+        throw ErrorUnableToParse("Missing STRUCT_END");
+
+    if ( (parent_node) &&
+         (parent_node->m_dataType == DataType::DICT_ENTRY) )
+        throw ErrorUnableToParse("Missing DICT_ENTRY_END");
 
     return first;
+}
+
+Signature::SignatureNodePointer Signature::create_signature_node(
+    DataType data_type,
+    SignatureNodePointer const& current_node) const
+{
+    SignatureNodePointer new_node;
+
+    if ( (data_type == DataType::STRUCT_END) ||
+         (data_type == DataType::DICT_ENTRY_END) )
+    {
+        return current_node;
+    }
+
+    if (data_type == DataType::STRUCT_BEGIN)
+    {
+        // TODO: Must the STRUCT_BEGIN...
+        new_node =
+            std::make_shared<priv::SignatureNode>(
+                DataType::STRUCT);
+    }
+    else if (data_type == DataType::DICT_ENTRY_BEGIN)
+    {
+        // TODO: Must the DICT_ENTRY_BEGIN...
+        new_node =
+            std::make_shared<priv::SignatureNode>(
+                DataType::DICT_ENTRY);
+    }
+    else
+    {
+        new_node =
+            std::make_shared<priv::SignatureNode>(
+                data_type);
+    }
+
+    if (current_node)
+    {
+        current_node->m_next =
+            new_node;
+    }
+
+    return new_node;
 }
 
 void Signature::print_tree( std::ostream* stream ) const {
@@ -261,12 +289,12 @@ void Signature::print_tree( std::ostream* stream ) const {
     }
 }
 
-void Signature::print_node( std::ostream* stream, priv::SignatureNode* node, int spaces ) const {
+void Signature::print_node( std::ostream* stream, priv::SignatureNode* node, int spaces ) const
+{
     if( node == nullptr ) {
         return;
     }
 
-    //if( node->)
     for( int x = 0; x < spaces; x++ ) {
         *stream << " ";
     }
@@ -276,25 +304,26 @@ void Signature::print_node( std::ostream* stream, priv::SignatureNode* node, int
 
 void Signature::initialize() {
     m_priv->m_valid = true;
-    std::stack<ContainerType> containerStack;
-    std::string::const_iterator it = m_priv->m_signature.begin();
 
-    m_priv->m_startingNode = create_signature_tree( it, &containerStack, m_priv->m_valid );
+    std::string::const_iterator itr =
+        m_priv->m_signature.begin();
 
-    if( !containerStack.empty() ||
-        it != m_priv->m_signature.end() ) {
-        SIMPLELOGGER_DEBUG( LOGGER_NAME, "Either stack not empty or signature not used up completely" );
+    try
+    {
+        m_priv->m_startingNode = create_signature_tree(
+            itr,
+            m_priv->m_signature.end());
+    }
+    catch (ErrorUnableToParse const& exception)
+    {
+        std::ostringstream error_message;
+        error_message << "Unable to parse signature with error \'" << exception.what() << "\'";
+        SIMPLELOGGER_DEBUG(LOGGER_NAME, error_message.str());
         m_priv->m_valid = false;
     }
 
     std::ostringstream logmsg;
-    logmsg << "Signature \'" << m_priv->m_signature << "\' is ";
-
-    if( m_priv->m_valid ) {
-        logmsg << "valid";
-    } else {
-        logmsg << "invalid";
-    }
+    logmsg << "Signature \'" << m_priv->m_signature << "\' is " << (m_priv->m_valid ? "valid" : "invalid") << "\'";
 
     SIMPLELOGGER_TRACE( LOGGER_NAME, logmsg.str() );
 }

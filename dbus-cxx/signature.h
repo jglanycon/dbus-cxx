@@ -49,14 +49,16 @@ namespace priv {
 /**
  * Represents a single entry in our graph of the signature
  */
-class SignatureNode {
+class SignatureNode
+{
 public:
     typedef std::shared_ptr<SignatureNode> SignatureNodePointer;
 
-    SignatureNode(DataType data_type) :
-        m_dataType(data_type),
+    SignatureNode(DataType data_type)
+    :   m_dataType(data_type),
         m_next(),
-        m_sub(){}
+        m_sub() {
+    }
 
     DataType m_dataType;
     SignatureNodePointer m_next;
@@ -75,7 +77,8 @@ template<typename... T> class MultipleReturn;
  *
  * @author Rick L Vinyard Jr <rvinyard@cs.nmsu.edu>
  */
-class Signature {
+class Signature
+{
 public:
     typedef SignatureIterator iterator;
 
@@ -138,8 +141,12 @@ private:
 
     SignatureNodePointer create_signature_tree(
         std::string::const_iterator& itr,
-        std::stack<ContainerType>* container_stack,
-        bool& ok);
+        std::string::const_iterator const& end_itr,
+        SignatureNodePointer const& parent_node = SignatureNodePointer());
+
+    SignatureNodePointer create_signature_node(
+        DataType data_type,
+        SignatureNodePointer const& current_node) const;
 
     void print_node(
         std::ostream* stream,

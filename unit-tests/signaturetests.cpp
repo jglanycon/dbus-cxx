@@ -243,7 +243,8 @@ bool signature_iterate_struct_and_data() {
     return true;
 }
 
-bool signature_unbalanced_struct() {
+bool signature_unbalanced_struct()
+{
     DBus::Signature sig( "(b" );
 
     TEST_EQUALS_RET_FAIL( sig.is_valid(), false );
@@ -313,7 +314,44 @@ bool signature_iterate_nested_dict()
     return true;
 }
 
-bool signature_single_bool() {
+bool signature_iterate_nested_combi_of_array_structs()
+{
+    DBus::Signature signature("a(sa(sv))");
+
+    DBus::SignatureIterator itr =
+        signature.begin();
+
+    TEST_EQUALS_RET_FAIL(itr.type(), DBus::DataType::ARRAY);
+
+    itr = itr.recurse();
+    TEST_EQUALS_RET_FAIL(itr.type(), DBus::DataType::STRUCT);
+
+    itr = itr.recurse();
+    TEST_EQUALS_RET_FAIL(itr.type(), DBus::DataType::STRING);
+
+    itr.next();
+    TEST_EQUALS_RET_FAIL(itr.type(), DBus::DataType::ARRAY);
+
+    itr = itr.recurse();
+    TEST_EQUALS_RET_FAIL(itr.type(), DBus::DataType::STRUCT);
+
+    itr = itr.recurse();
+    TEST_EQUALS_RET_FAIL(itr.type(), DBus::DataType::STRING);
+
+    itr.next();
+    TEST_EQUALS_RET_FAIL(itr.type(), DBus::DataType::VARIANT);
+
+    itr.next();
+    TEST_EQUALS_RET_FAIL(itr.type(), DBus::DataType::INVALID);
+
+    // Check the output signature is the same as the input
+    TEST_EQUALS_RET_FAIL(signature.str(), signature.begin().signature());
+
+    return true;
+}
+
+bool signature_single_bool()
+{
     DBus::Signature sig( "b" );
 
     DBus::SignatureIterator it = sig.begin();
@@ -326,7 +364,8 @@ bool signature_single_bool() {
     return true;
 }
 
-bool signature_create_from_struct_in_array() {
+bool signature_create_from_struct_in_array()
+{
     std::vector<std::tuple<int32_t, uint64_t>> vector_type;
 
     std::string sig_output = DBus::signature( vector_type );
@@ -334,7 +373,8 @@ bool signature_create_from_struct_in_array() {
     return sig_output == "a(it)";
 }
 
-bool signature_single_type1() {
+bool signature_single_type1()
+{
     DBus::Signature sig( "i" );
 
     TEST_EQUALS_RET_FAIL( sig.is_singleton(), true );
@@ -342,7 +382,8 @@ bool signature_single_type1() {
     return true;
 }
 
-bool signature_single_type2() {
+bool signature_single_type2()
+{
     DBus::Signature sig( "ai" );
 
     TEST_EQUALS_RET_FAIL( sig.is_singleton(), true );
@@ -350,15 +391,15 @@ bool signature_single_type2() {
     return true;
 }
 
-#define ADD_TEST(name) do{ if( test_name == STRINGIFY(name) ){ \
+#define ADD_TEST(name) do{ if( test_name == STRINGIFY(name) ) { \
             ret = signature_##name();\
         } \
     } while( 0 )
 
-int main( int argc, char** argv ) {
-    if( argc < 2 ) {
+int main(int argc, char** argv)
+{
+    if ( argc < 2 )
         return 1;
-    }
 
     std::string test_name(argv[1]);
     bool ret = false;
@@ -375,6 +416,8 @@ int main( int argc, char** argv ) {
     ADD_TEST( iterate_struct_and_data );
     ADD_TEST( iterate_nested_struct );
     ADD_TEST( iterate_nested_dict );
+    ADD_TEST( iterate_nested_combi_of_array_structs );
+
     ADD_TEST( unbalanced_struct );
     ADD_TEST( single_bool );
 

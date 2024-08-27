@@ -132,7 +132,8 @@ std::string error_method_symbol(){
     throw std::runtime_error("error_message_here");
 }
 
-bool nested_tuple_method_symbol(std::tuple<int, std::tuple<int, uint32_t>, double, std::string> arg) {
+bool nested_tuple_method_symbol(std::tuple<int, std::tuple<int, uint32_t>, double, std::string> arg)
+{
     return true;
 }
 
@@ -313,7 +314,8 @@ bool data_error_return() {
     return false;
 }
 
-bool data_nested_tuple() {
+bool data_nested_tuple()
+{
     std::tuple<int, uint32_t> nested_tuple =
         std::make_tuple(22, 33);
 
@@ -332,7 +334,8 @@ bool data_nested_tuple() {
 
 int main( int argc, char** argv )
 {
-    if ( argc < 3 ) {
+    if ( argc < 3 )
+    {
         return 1;
     }
 
@@ -340,8 +343,8 @@ int main( int argc, char** argv )
     bool ret = false;
     bool is_client = std::string( argv[1] ) == "client";
 
-    DBus::set_logging_function( DBus::log_std_err );
-    DBus::set_log_level( SL_TRACE );
+    // DBus::set_logging_function( DBus::log_std_err );
+    // DBus::set_log_level( SL_TRACE );
 
     dispatch = DBus::StandaloneDispatcher::create();
     conn = dispatch->create_connection( DBus::BusType::SESSION );
@@ -360,12 +363,12 @@ int main( int argc, char** argv )
         ADD_TEST( variant_map );
         ADD_TEST( variant_tuple );
         ADD_TEST( nonexistant_method );
-        ADD_TEST(send_multiplereturn);
-        ADD_TEST(send_multiplereturn2);
-        ADD_TEST(error_return);
-        ADD_TEST(nested_tuple);
+        ADD_TEST( send_multiplereturn );
+        ADD_TEST( send_multiplereturn2 );
+        ADD_TEST( error_return );
+        ADD_TEST( nested_tuple );
 
-    	std::cout << "Test case \"" + test_name + "\" " + (ret ? "PASSED" : "FAIL") << std::endl;
+    std::cout << "Test case \"" + test_name + "\" " + (ret ? "PASSED" : "FAIL") << std::endl;
 
     } else {
         server_setup();

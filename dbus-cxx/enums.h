@@ -66,7 +66,11 @@ enum class DataType {
     ARRAY = 'a',
     VARIANT = 'v',
     STRUCT = 'r',
+    STRUCT_BEGIN = '(',
+    STRUCT_END = ')',
     DICT_ENTRY = 'e',
+    DICT_ENTRY_BEGIN = '{',
+    DICT_ENTRY_END = '}',
     UNIX_FD = 'h',
 };
 
